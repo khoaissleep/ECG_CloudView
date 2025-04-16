@@ -1,574 +1,298 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Enhanced ECG Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ECG Monitoring Dashboard (Pan–Tompkins)</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      margin: 0;
-      padding: 0;
-      background-color: #f4f7f6;
-      color: #333;
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
+      font-family: 'Segoe UI', sans-serif;
+      margin:0; padding:0;
+      background:#f4f7f6; color:#333;
+      display:flex; flex-direction:column; min-height:100vh;
     }
     .container {
-      width: 95%;
-      max-width: 1200px;
-      margin: 20px auto;
-      background-color: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      width:95%; max-width:1200px;
+      margin:20px auto; background:#fff;
+      padding:20px; border-radius:8px;
+      box-shadow:0 2px 10px rgba(0,0,0,0.1);
     }
     h2 {
-      text-align: center;
-      color: #2c3e50;
-      margin-bottom: 25px;
-      border-bottom: 1px solid #eee;
-      padding-bottom: 10px;
+      text-align:center; color:#2c3e50;
+      margin-bottom:25px;
+      border-bottom:1px solid #eee;
+      padding-bottom:10px;
     }
-    #chart-container {
-      width: 100%;
-      height: 350px; /* Increased height */
-      margin-bottom: 20px;
-      position: relative;
+    #chart-container { width:100%; height:350px; margin-bottom:20px; }
+    .status-bar {
+      padding:10px; text-align:center; font-weight:500;
+      border-radius:5px; margin-bottom:15px;
     }
+    .status-info{background:#eaf2f8;color:#3498db;}
+    .status-ok{background:#e8f6f3;color:#1abc9c;}
+    .status-warning{background:#fef5e7;color:#f39c12;}
+    .status-error{background:#fdedec;color:#e74c3c;}
     .info-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 15px;
-      margin-top: 20px;
-      padding-top: 20px;
-      border-top: 1px solid #eee;
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+      gap:15px; border-top:1px solid #eee;
+      padding-top:20px;
     }
     .info-box {
-      background-color: #ecf0f1;
-      padding: 15px;
-      border-radius: 5px;
-      text-align: center;
+      background:#ecf0f1; padding:15px;
+      border-radius:5px; text-align:center;
       box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
     }
-    .info-box .label {
-      font-size: 0.9em;
-      color: #555;
-      margin-bottom: 5px;
-      display: block;
-    }
+    .info-box .label { font-size:.9em; color:#555; }
     .info-box .value {
-      font-size: 1.8em;
-      font-weight: bold;
-      color: #3498db; /* Default color */
+      font-size:1.8em; font-weight:bold; color:#3498db;
     }
-    .info-box .unit {
-        font-size: 0.8em;
-        color: #777;
-        margin-left: 3px;
-    }
-    #heart-rate .value {
-      color: #e74c3c; /* Red for heart rate */
-    }
-    #signal-quality .value {
-        font-size: 1.5em; /* Slightly smaller for percentage */
-    }
-    .status-bar {
-        margin-top: 15px;
-        padding: 10px;
-        border-radius: 5px;
-        text-align: center;
-        font-weight: 500;
-    }
-    .status-ok { background-color: #e8f6f3; color: #1abc9c; }
-    .status-warning { background-color: #fef5e7; color: #f39c12; }
-    .status-error { background-color: #fdedec; color: #e74c3c; }
-    .status-info { background-color: #eaf2f8; color: #3498db;}
-
-    /* Progress bar for quality */
+    .info-box .unit { font-size:.8em; color:#777; margin-left:3px; }
+    #heart-rate .value { color:#e74c3c; }
+    #signal-quality .value { font-size:1.5em; }
     .progress-container {
-        height: 10px;
-        background-color: #ddd;
-        border-radius: 5px;
-        overflow: hidden;
-        margin-top: 8px;
+      height:10px; background:#ddd;
+      border-radius:5px; overflow:hidden; margin-top:8px;
     }
     .progress-bar {
-        height: 100%;
-        background-color: #3498db;
-        width: 0%;
-        border-radius: 5px;
-        transition: width 0.5s ease, background-color 0.5s ease;
+      height:100%; width:0%;
+      transition: width .5s ease, background-color .5s ease;
     }
-    .quality-good { background-color: #2ecc71; }
-    .quality-fair { background-color: #f39c12; }
-    .quality-poor { background-color: #e74c3c; }
-
+    .quality-good{background:#2ecc71;}
+    .quality-fair{background:#f39c12;}
+    .quality-poor{background:#e74c3c;}
     footer {
-      text-align: center;
-      margin-top: auto; /* Pushes footer down */
-      padding: 15px;
-      font-size: 0.85em;
-      color: #777;
-      background-color: #eee;
+      text-align:center; padding:15px;
+      margin-top:auto; background:#eee;
+      color:#777; font-size:.85em;
     }
-
-    /* Responsive */
-     @media (max-width: 600px) {
-        .info-grid {
-             grid-template-columns: 1fr 1fr; /* Stack to 2 columns on smaller screens */
-        }
-        h2 { font-size: 1.5em; }
-        .info-box .value { font-size: 1.5em; }
+    @media (max-width:600px){
+      .info-grid{grid-template-columns:1fr 1fr;}
+      h2{font-size:1.5em;}
+      .info-box .value{font-size:1.5em;}
     }
-
   </style>
 </head>
 <body>
   <div class="container">
     <h2>ECG Monitoring Dashboard</h2>
-
-    <div id="chart-container">
-      <canvas id="ecgChart"></canvas>
-    </div>
-
-    <div id="status" class="status-bar status-info">Connecting...</div>
-
+    <div id="chart-container"><canvas id="ecgChart"></canvas></div>
+    <div id="status" class="status-bar status-info">Đang kết nối...</div>
     <div class="info-grid">
       <div id="heart-rate" class="info-box">
         <span class="label">Heart Rate</span>
-        <span class="value">--</span>
-        <span class="unit">BPM</span>
+        <span class="value">--</span><span class="unit">BPM</span>
       </div>
       <div id="rr-interval" class="info-box">
-        <span class="label">R-R Interval</span>
-        <span class="value">--</span>
-        <span class="unit">ms</span>
+        <span class="label">R‑R Interval</span>
+        <span class="value">--</span><span class="unit">ms</span>
       </div>
       <div id="signal-quality" class="info-box">
         <span class="label">Signal Quality</span>
-        <span class="value">--</span>
-         <span class="unit">%</span>
+        <span class="value">--</span><span class="unit">%</span>
         <div class="progress-container">
-            <div id="quality-progress" class="progress-bar"></div>
+          <div id="quality-progress" class="progress-bar"></div>
         </div>
       </div>
       <div id="alerts" class="info-box">
         <span class="label">Alerts</span>
-        <span class="value" style="font-size: 1.2em; color: #34495e;">None</span>
-        <span class="unit"></span>
+        <span class="value" style="font-size:1.2em;color:#34495e;">None</span>
       </div>
     </div>
   </div>
-
-  <footer>
-    Disclaimer: This dashboard is for informational purposes only and not a substitute for professional medical advice or diagnosis.
-  </footer>
+  <footer>Disclaimer: Thông tin chỉ mang tính tham khảo, không thay thế tư vấn y tế.</footer>
 
   <script>
-    // --- Configuration ---
-    const SAMPLE_RATE = 250; // Hz - IMPORTANT: Set this to your actual sample rate!
-    const CHART_POINTS = 500; // Number of points to display on the chart
-    const FETCH_INTERVAL = 500; // Milliseconds (how often to ask the backend for new data)
-    const ANALYSIS_WINDOW_SECONDS = 4; // How many seconds of data to analyze for HR etc.
-    const ANALYSIS_BUFFER_SIZE = SAMPLE_RATE * ANALYSIS_WINDOW_SECONDS; // Number of samples for analysis
-    const R_PEAK_THRESHOLD_MIN = 3000; // Minimum ADC value to consider as a potential R-peak (adjust based on your signal amplitude)
-    const R_PEAK_REFRACTORY_PERIOD_MS = 200; // Minimum time (ms) between R-peaks to avoid double counting
+    const SAMPLE_RATE = 250;
+    const CHART_POINTS = 500;
+    const FETCH_INTERVAL = 500;
+    const ANALYSIS_WINDOW_S = 4;
+    const BUFFER_SIZE = SAMPLE_RATE * ANALYSIS_WINDOW_S;
+    const REFRACTORY_SAMPLES = Math.round(0.2 * SAMPLE_RATE);
 
-    // --- DOM Elements ---
+    // DOM
     const ctx = document.getElementById('ecgChart').getContext('2d');
-    const hrValueEl = document.querySelector('#heart-rate .value');
-    const rrValueEl = document.querySelector('#rr-interval .value');
-    const qualityValueEl = document.querySelector('#signal-quality .value');
-    const qualityProgressEl = document.getElementById('quality-progress');
-    const alertsValueEl = document.querySelector('#alerts .value');
     const statusEl = document.getElementById('status');
+    const hrEl = document.querySelector('#heart-rate .value');
+    const rrEl = document.querySelector('#rr-interval .value');
+    const qualityEl = document.querySelector('#signal-quality .value');
+    const qualityBar = document.getElementById('quality-progress');
+    const alertsEl = document.querySelector('#alerts .value');
 
-    // --- State ---
-    let ecgDataBuffer = []; // Stores recent data for analysis
-    let lastPeakTime = 0;
-
-    // --- Chart Initialization ---
-    let ecgChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: Array.from({length: CHART_POINTS}, (_, i) => i), // X-axis labels (sample index)
-        datasets: [{
-          label: 'ECG Signal',
-          data: Array(CHART_POINTS).fill(2048), // Initial baseline (mid-range for 12-bit)
-          borderColor: '#3498db', // Blue color for ECG line
-          borderWidth: 1.5,
-          pointRadius: 0, // No dots on data points
-          fill: false,
-          tension: 0.1, // Slight smoothing
-        }]
+    // Chart
+    const chart = new Chart(ctx, {
+      type:'line',
+      data:{
+        labels:Array(CHART_POINTS).fill(''),
+        datasets:[{ data:Array(CHART_POINTS).fill(2048),
+                    borderColor:'#3498db', borderWidth:1.5,
+                    pointRadius:0, fill:false, tension:0.1 }]
       },
-      options: {
-        animation: { duration: 0 }, // Disable animation for real-time feel
-        responsive: true,
-        maintainAspectRatio: false, // Allow chart to fill container height
-        scales: {
-          x: {
-            display: false // Hide X-axis labels (we only care about the waveform shape)
-          },
-          y: {
-            // beginAtZero: false, // Allow negative if your signal has it
-            min: 0,    // Min ADC value
-            max: 4095, // Max ADC value (for 12-bit)
-            ticks: {
-                stepSize: 500 // Adjust grid line spacing
-            },
-            title: {
-                display: true,
-                text: 'ADC Value'
-            }
-          }
-        },
-        plugins: {
-          legend: { display: false }, // Hide legend box
-          tooltip: { enabled: false } // Disable tooltips on hover
-        }
+      options:{
+        animation:{duration:0}, responsive:true,
+        maintainAspectRatio:false,
+        scales:{
+          x:{display:false},
+          y:{min:0,max:4095,ticks:{stepSize:500},title:{display:true,text:'ADC'}}},
+        plugins:{legend:{display:false},tooltip:{enabled:false}}
       }
     });
 
-    // --- Core Functions ---
-
-    function updateStatus(message, type = 'info') {
-        statusEl.textContent = message;
-        statusEl.className = `status-bar status-${type}`; // status-info, status-ok, status-warning, status-error
+    function updateStatus(msg,type='info'){
+      statusEl.textContent=msg;
+      statusEl.className=`status-bar status-${type}`;
+    }
+    function updateAlerts(msg,isErr=false){
+      alertsEl.textContent=msg;
+      alertsEl.style.color = isErr?'#e74c3c':'#34495e';
     }
 
-    function updateAlerts(message, isError = false) {
-        alertsValueEl.textContent = message;
-        alertsValueEl.style.color = isError ? '#e74c3c' : '#34495e'; // Red for errors, default otherwise
-    }
-
-    /**
- * Robust R-peak detection algorithm using filtering and adaptive thresholding.
- * @param {number[]} data - Array of ECG ADC values.
- * @returns {number[]} Array of indices where R-peaks were detected.
- */
-  function findRPeaksRobust(data) {
-      if (!data || data.length < 3) return []; // Need enough data for filtering
-
-      // --- 1. Filtering (Moving Average for Smoothing) ---
-      const filteredData = applyMovingAverageFilter(data, 5); // Adjust window size as needed (e.g., 3-7)
-      // You can apply it multiple times for stronger smoothing if needed:
-      // let furtherFilteredData = applyMovingAverageFilter(filteredData, 3);
-
-
-      // --- 2. Differentiation (Optional - can help sharpen peaks) ---
-      // const differentiatedData = differentiateSignal(filteredData);
-      // const processedData = differentiatedData; // Use differentiated data for peak detection
-
-      // ---  If not differentiating, use filteredData directly ---
-      const processedData = filteredData;
-
-
-      // --- 3. Squaring (Optional - can amplify peaks) ---
-      // const squaredData = processedData.map(val => val * val);
-      // const dataForThresholding = squaredData; // Use squared data for thresholding and peak detection
-
-
-      // --- If not squaring, use processedData directly ---
-      const dataForThresholding = processedData;
-
-
-      // --- 4. Adaptive Thresholding (Moving Average of the *processed* signal) ---
-      const thresholdFactor = 0.6; // Adjust this factor (e.g., 0.4 - 0.8)
-      const thresholdWindowSize = Math.round(0.1 * SAMPLE_RATE); // 100ms window, adjust based on heart rate range
-      const adaptiveThresholds = calculateAdaptiveThreshold(dataForThresholding, thresholdWindowSize, thresholdFactor);
-
-
-      // --- 5. Peak Detection with Adaptive Threshold and Refractory Period ---
-      const peaks = [];
-      const refractoryPeriodSamples = Math.round(R_PEAK_REFRACTORY_PERIOD_MS / (1000 / SAMPLE_RATE));
-      let lastPeakIndex = -Infinity;
-
-
-      for (let i = 1; i < processedData.length - 1; i++) {
-          if (
-              processedData[i] > adaptiveThresholds[i] && // Compare to *adaptive* threshold
-              processedData[i] > processedData[i - 1] &&
-              processedData[i] > processedData[i + 1] &&
-              (i - lastPeakIndex) > refractoryPeriodSamples
-          ) {
-              peaks.push(i);
-              lastPeakIndex = i;
-          }
+    // --- Pan–Tompkins pipeline ---
+    function lowPassFilter(x){
+      // y[n] = 2y[n-1] - y[n-2] + x[n] - 2x[n-6] + x[n-12]
+      const y=[]; 
+      for(let i=0;i<x.length;i++){
+        const xn = x[i];
+        const x6 = x[i-6]||0, x12 = x[i-12]||0;
+        const y1 = y[i-1]||0, y2 = y[i-2]||0;
+        y[i] = 2*y1 - y2 + xn - 2*x6 + x12;
       }
-      return peaks;
-  }
-
-// --- Helper Functions ---
-
-/**
- * Applies a simple moving average filter to smooth the signal.
- * @param {number[]} data - Input signal data.
- * @param {number} windowSize - Size of the moving average window.
- * @returns {number[]} Filtered data.
- */
-function applyMovingAverageFilter(data, windowSize) {
-    const filteredData = [];
-    for (let i = 0; i < data.length; i++) {
-        let sum = 0;
-        let count = 0;
-        for (let j = Math.max(0, i - Math.floor(windowSize / 2)); j <= Math.min(data.length - 1, i + Math.floor(windowSize / 2)); j++) {
-            sum += data[j];
-            count++;
-        }
-        filteredData.push(sum / count);
+      return y;
     }
-    return filteredData;
-}
-
-/**
- * Calculates adaptive thresholds based on a moving average of the signal.
- * @param {number[]} data - Processed ECG data (e.g., filtered, squared).
- * @param {number} windowSize - Window size for moving average threshold calculation.
- * @param {number} factor - Factor to scale the moving average (e.g., 0.6).
- * @returns {number[]} Array of adaptive thresholds for each data point.
- */
-function calculateAdaptiveThreshold(data, windowSize, factor) {
-    const thresholds = [];
-    const movingAverage = applyMovingAverageFilter(data, windowSize); // Use moving average for threshold baseline
-    for (let i = 0; i < data.length; i++) {
-        thresholds.push(movingAverage[i] * factor); // Threshold is a fraction of the moving average
+    function highPassFilter(x){
+      // y[n] = y[n-1] - x[n]/32 + x[n-16] - x[n-17] + x[n-32]/32
+      const y=[]; 
+      for(let i=0;i<x.length;i++){
+        const xn = x[i]/32;
+        const x16 = x[i-16]||0, x17 = x[i-17]||0, x32 = (x[i-32]||0)/32;
+        const y1 = y[i-1]||0;
+        y[i] = y1 - xn + x16 - x17 + x32;
+      }
+      return y;
     }
-    return thresholds;
-}
-
-/**
- * (Optional) Differentiates the signal to enhance R-peak slope.
- * Simple first-order difference.
- * @param {number[]} data - Input signal data.
- * @returns {number[]} Differentiated data.
- */
-function differentiateSignal(data) {
-    const differentiatedData = [];
-    differentiatedData.push(0); // First point has no previous point to differentiate against
-    for (let i = 1; i < data.length; i++) {
-        differentiatedData.push(data[i] - data[i - 1]);
+    function derivativeFilter(x){
+      // y[n] = (2x[n] + x[n-1] - x[n-3] - 2x[n-4]) / 8
+      const y=[];
+      for(let i=0;i<x.length;i++){
+        const x0=x[i], x1=x[i-1]||0, x3=x[i-3]||0, x4=x[i-4]||0;
+        y[i] = (2*x0 + x1 - x3 - 2*x4)/8;
+      }
+      return y;
     }
-    return differentiatedData;
-}
+    function squaring(x){
+      return x.map(v=>v*v);
+    }
+    function movingWindow(x,win){
+      const y=[]; let sum=0;
+      for(let i=0;i<x.length;i++){
+        sum += x[i];
+        if(i>win) sum -= x[i-win-1];
+        y[i] = sum / win;
+      }
+      return y;
+    }
 
-    /**
-     * Finds R-peaks in a given data array.
-     * Very basic algorithm: looks for local maxima above a threshold.
-     * @param {number[]} data - Array of ECG ADC values.
-     * @returns {number[]} Array of indices where R-peaks were detected.
-     */
-    function findRPeaks(data) {
-      const peaks = [];
-      const refractoryPeriodSamples = Math.round(R_PEAK_REFRACTORY_PERIOD_MS / (1000 / SAMPLE_RATE));
-      let lastPeakIndex = -Infinity;
+    function panTompkinsRPeaks(raw){
+      // 1. Band‑pass
+      const lp = lowPassFilter(raw);
+      const hp = highPassFilter(lp);
+      // 2. Derivative
+      const der = derivativeFilter(hp);
+      // 3. Squaring
+      const sq = squaring(der);
+      // 4. Moving‑window integration (~150ms)
+      const mw = movingWindow(sq, Math.round(0.15 * SAMPLE_RATE));
 
-      // Adjust threshold dynamically? (More complex, start fixed)
-      const threshold = R_PEAK_THRESHOLD_MIN;
-
-      for (let i = 1; i < data.length - 1; i++) {
-        // Check threshold, local maximum, and refractory period
-        if (
-          data[i] > threshold &&
-          data[i] > data[i - 1] &&
-          data[i] > data[i + 1] &&
-          (i - lastPeakIndex) > refractoryPeriodSamples
-        ) {
+      // 5. Adaptive threshold & refractory
+      const peaks=[]; 
+      let thresh = mw.slice(0,SAMPLE_RATE).reduce((a,b)=>a+b)/SAMPLE_RATE * 0.5;
+      let lastIdx = -Infinity;
+      for(let i=1;i<mw.length-1;i++){
+        if(mw[i]>thresh && mw[i]>mw[i-1] && mw[i]>mw[i+1] && (i-lastIdx)>REFRACTORY_SAMPLES){
           peaks.push(i);
-          lastPeakIndex = i;
+          lastIdx = i;
+          // update threshold
+          thresh = 0.125*mw[i] + 0.875*thresh;
         }
       }
       return peaks;
     }
 
-    /**
-     * Calculates heart rate and R-R interval from peak indices.
-     * @param {number[]} peakIndices - Array of indices where R-peaks were detected.
-     * @returns {object} Object containing { bpm: number, rrInterval: number } or null if not enough peaks.
-     */
-    function calculateVitals(peakIndices) {
-      if (peakIndices.length < 2) {
-        return null; // Not enough peaks to calculate interval
+    function calcVitals(peaks){
+      if(peaks.length<2) return null;
+      const rr = [];
+      for(let i=1;i<peaks.length;i++){
+        rr.push((peaks[i]-peaks[i-1]) / SAMPLE_RATE * 1000);
       }
-
-      const rrIntervalsMs = [];
-      for (let i = 1; i < peakIndices.length; i++) {
-        const intervalSamples = peakIndices[i] - peakIndices[i - 1];
-        const intervalMs = (intervalSamples / SAMPLE_RATE) * 1000;
-        rrIntervalsMs.push(intervalMs);
-      }
-
-      // Use the average interval for more stable readings
-      const avgRRInterval = rrIntervalsMs.reduce((sum, val) => sum + val, 0) / rrIntervalsMs.length;
-
-      if (avgRRInterval <= 0) return null; // Avoid division by zero
-
-      const bpm = 60000 / avgRRInterval;
-
-      return {
-        bpm: Math.round(bpm),
-        rrInterval: Math.round(avgRRInterval)
-      };
+      const avg = rr.reduce((a,b)=>a+b)/rr.length;
+      return { bpm: Math.round(60000/avg), rr: Math.round(avg) };
+    }
+    function estimateQuality(data,peaks){
+      if(data.length<SAMPLE_RATE/2) return 0;
+      const mean = data.reduce((a,b)=>a+b)/data.length;
+      const varr = data.reduce((a,b)=>a+Math.pow(b-mean,2),0)/data.length;
+      let vs = varr<1000?10: varr>100000? Math.max(0,50-(varr-100000)/5000):80;
+      let ps = peaks.length>0? 20+Math.min(30,(peaks.length/(data.length/SAMPLE_RATE*(60/75)))*30):0;
+      let q = Math.round(vs*0.6 + ps*0.4);
+      q = Math.max(0,Math.min(100,q));
+      qualityBar.style.width = q+'%';
+      qualityBar.classList.remove('quality-good','quality-fair','quality-poor');
+      qualityBar.classList.add(q>=70?'quality-good': q>=40?'quality-fair':'quality-poor');
+      return q;
     }
 
-    /**
-     * Estimates signal quality based on variance and peak detection.
-     * Very basic estimation.
-     * @param {number[]} data - Array of ECG ADC values used for analysis.
-     * @param {number[]} peakIndices - Array of detected peak indices in the data.
-     * @returns {number} Quality score from 0 to 100.
-     */
-     function estimateSignalQuality(data, peakIndices) {
-        if (!data || data.length < SAMPLE_RATE / 2) return 0; // Need some data
-
-        // 1. Check for flatline or excessive noise using variance
-        const mean = data.reduce((a, b) => a + b, 0) / data.length;
-        const variance = data.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / data.length;
-
-        let varianceScore = 0;
-        const lowVarianceThreshold = 1000; // Adjust based on expected noise
-        const highVarianceThreshold = 100000; // Adjust based on expected noise
-
-        if (variance < lowVarianceThreshold) {
-            varianceScore = 10; // Penalize flatline heavily
-        } else if (variance > highVarianceThreshold) {
-            varianceScore = Math.max(0, 50 - (variance - highVarianceThreshold) / 5000); // Penalize high noise
-        } else {
-             varianceScore = 80; // Assume decent range if not flat or excessively noisy
-        }
-
-
-        // 2. Check if peaks are being detected somewhat regularly
-        let peakScore = 0;
-        const expectedPeaks = (data.length / SAMPLE_RATE) * (60 / 75); // Rough estimate for 75 bpm
-         if (peakIndices.length > 0) {
-             // Give points for *any* peaks found, more if reasonably close to expected
-            peakScore = 20 + Math.min(30, (peakIndices.length / expectedPeaks) * 30);
-         } else {
-            peakScore = 0; // No peaks = bad quality
-         }
-
-
-        // Combine scores (simple weighted average)
-        let quality = Math.round(varianceScore * 0.6 + peakScore * 0.4);
-        quality = Math.max(0, Math.min(100, quality)); // Clamp between 0 and 100
-
-        // Update progress bar visually
-        qualityProgressEl.style.width = quality + '%';
-        qualityProgressEl.classList.remove('quality-good', 'quality-fair', 'quality-poor');
-        if (quality >= 70) {
-            qualityProgressEl.classList.add('quality-good');
-        } else if (quality >= 40) {
-            qualityProgressEl.classList.add('quality-fair');
-        } else {
-            qualityProgressEl.classList.add('quality-poor');
-        }
-
-
-        return quality;
-    }
-
-    /**
-     * Main function to fetch data, process it, and update the UI.
-     */
-    async function fetchAndProcessData() {
+    // --- Fetch & Update Loop ---
+    let buffer = [];
+    async function fetchAndUpdate(){
       try {
-        const response = await fetch('/ecg'); // Fetch from your backend endpoint
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const result = await response.json();
-        console.log(result)
-        if (result.ecgData && Array.isArray(result.ecgData) && result.ecgData.length > 0) {
-          updateStatus('Processing data...', 'info');
-          const newData = result.ecgData;
+        const res = await fetch('/ecg');
+        if(!res.ok) throw new Error(res.status);
+        const { ecgData } = await res.json();
+        if(Array.isArray(ecgData) && ecgData.length){
+          buffer = buffer.concat(ecgData);
+          if(buffer.length>BUFFER_SIZE) buffer = buffer.slice(-BUFFER_SIZE);
 
-          // Update the analysis buffer (keep the last N seconds)
-          ecgDataBuffer = ecgDataBuffer.concat(newData);
-          if (ecgDataBuffer.length > ANALYSIS_BUFFER_SIZE) {
-            ecgDataBuffer = ecgDataBuffer.slice(ecgDataBuffer.length - ANALYSIS_BUFFER_SIZE);
-          }
+          // Chart
+          let disp = buffer.slice(-CHART_POINTS);
+          while(disp.length<CHART_POINTS) disp.unshift(2048);
+          chart.data.datasets[0].data = disp;
+          chart.update('none');
 
-          // Update the chart display (show the latest CHART_POINTS)
-          let displayData = ecgDataBuffer.slice(-CHART_POINTS);
-           // Pad if less than CHART_POINTS available initially
-          while (displayData.length < CHART_POINTS) {
-              displayData.unshift(2048); // Pad with baseline value
-          }
-          ecgChart.data.datasets[0].data = displayData;
-          ecgChart.update('none'); // Use 'none' for slightly faster update without animation
+          // Analysis
+          const peaks = panTompkinsRPeaks(buffer);
+          const vitals = calcVitals(peaks);
+          const qual = estimateQuality(buffer,peaks);
 
-          // --- Analysis ---
-          const peaks = findRPeaksRobust(ecgDataBuffer); // Analyze the whole buffer
-          const vitals = calculateVitals(peaks);
-          const quality = estimateSignalQuality(ecgDataBuffer, peaks);
-
-          // --- Update UI ---
-          if (vitals) {
-            hrValueEl.textContent = vitals.bpm;
-            rrValueEl.textContent = vitals.rrInterval;
-
-            // Basic Alerts
-            if (vitals.bpm > 100) {
-                updateAlerts('Tachycardia (HR > 100)', true);
-            } else if (vitals.bpm < 60) {
-                 updateAlerts('Bradycardia (HR < 60)', true);
-            } else if (quality < 40) {
-                updateAlerts('Poor Signal Quality', true);
-            }
-             else {
-                updateAlerts('None', false);
-            }
+          if(vitals){
+            hrEl.textContent = vitals.bpm;
+            rrEl.textContent = vitals.rr;
+            if(vitals.bpm>100) updateAlerts('Tachycardia (HR>100)',true);
+            else if(vitals.bpm<60) updateAlerts('Bradycardia (HR<60)',true);
+            else if(qual<40) updateAlerts('Poor Signal Quality',true);
+            else updateAlerts('None',false);
             updateStatus(`Monitoring | Last update: ${new Date().toLocaleTimeString()}`, 'ok');
-
           } else {
-            // No vitals calculated (e.g., not enough peaks)
-            hrValueEl.textContent = '--';
-            rrValueEl.textContent = '--';
-             if (quality < 20) {
-                 updateAlerts('No Signal / Leads Off?', true);
-             } else {
-                 updateAlerts('Calculating...', false);
-             }
+            hrEl.textContent='--'; rrEl.textContent='--';
+            if(qual<20) updateAlerts('No Signal / Leads Off?',true);
+            else updateAlerts('Calculating...',false);
             updateStatus('Waiting for stable signal...', 'warning');
           }
-
-          qualityValueEl.textContent = quality; // Update quality score display
-
-
-        } else {
-          // No data received or invalid format
-           updateStatus('No data received from server.', 'warning');
-           // Optionally clear vitals if no data for a while
-           hrValueEl.textContent = '--';
-           rrValueEl.textContent = '--';
-           qualityValueEl.textContent = '--';
-           qualityProgressEl.style.width = '0%';
-           updateAlerts('No Data', true);
-        }
-      } catch (error) {
-        console.error('Error fetching or processing ECG data:', error);
-        updateStatus(`Error: ${error.message}`, 'error');
-        // Clear vitals on error
-        hrValueEl.textContent = '--';
-        rrValueEl.textContent = '--';
-        qualityValueEl.textContent = '--';
-        qualityProgressEl.style.width = '0%';
-        updateAlerts('Connection Error', true);
+          qualityEl.textContent = qual;
+        } else throw new Error('No data');
+      } catch(err){
+        console.error(err);
+        updateStatus(`Error: ${err.message}`, 'error');
+        hrEl.textContent='--'; rrEl.textContent='--'; qualityEl.textContent='--';
+        qualityBar.style.width='0%';
+        updateAlerts('Connection Error',true);
       } finally {
-          // Schedule the next fetch regardless of success or failure
-          setTimeout(fetchAndProcessData, FETCH_INTERVAL);
+        setTimeout(fetchAndUpdate, FETCH_INTERVAL);
       }
     }
 
-    // --- Initial Load ---
     updateStatus('Initializing dashboard...', 'info');
-    // Start the data fetching loop
-    fetchAndProcessData();
-
+    fetchAndUpdate();
   </script>
 </body>
 </html>
